@@ -1,6 +1,7 @@
-use std::fs::File;
-use std::io::Write;
 use std::fs;
+
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 
 use crate::questions;
 use crate::input;
@@ -10,14 +11,6 @@ pub struct QuestionSet {
 }
 
 impl QuestionSet {
-    pub fn save(&self, path:&String) {
-        let mut file = File::create(&path).expect("Unable to create a file.");
-        write!(file, "{}", {
-            let mut questions_as_text:Vec<String> = Vec::new();
-            for question in &self.questions { questions_as_text.push(question.save()); }
-            questions_as_text.join(";\n")
-        }).expect("Unable to save a file.");
-    }
     pub fn ask(&self) {
         let mut correct_num = 0;
         let mut wronged_question:Vec<questions::Question> = Vec::new();
@@ -33,6 +26,13 @@ impl QuestionSet {
             }
         }
     }
+
+    pub fn get_shuffled(&self) -> QuestionSet {
+        let mut rand = thread_rng();
+        let mut shuffled = self.questions.clone();
+        shuffled.shuffle(&mut rand);
+        return QuestionSet { questions : shuffled };
+    }
 }
 
 pub fn load(path:String) -> Option<QuestionSet> {
@@ -42,11 +42,11 @@ pub fn load(path:String) -> Option<QuestionSet> {
     
     for line in lines {
         let word:Vec<&str> = line.split('|').filter(|s| !s.is_empty()).collect();
-        let loaded =  if !["D", "O", "MD"].contains(&word[0]) {
+        let loaded =  if !["D", "O", "MD", "OD"].contains(&word[0]) {
             { println!("⚠️ Unknown question type. Please make sure that you are running latest version."); Option::None }
-        } else if word.len() != match word[0] { "D" => 3, "O" => 4, "MD" => 3, _ => { panic!("⚠️ Something incorrect.") } } {
+        } else if word.len() != match word[0] { "D" => 3, "O" => 4, "MD" => 3, "OD" => 3, _ => { panic!("⚠️ Something incorrect.") } } {
             {
-                let expected_len = match word[0] { "D" => 3, "O" => 4, "MD" => 3, _ => { panic!("⚠️ Something incorrect.") } };
+                let expected_len = match word[0] { "D" => 3, "O" => 4, "MD" => 3, "OD" => 3, _ => { panic!("⚠️ Something incorrect.") } };
                 if word.len() < expected_len {
                     println!("⚠️ The question, {} have no enough element.", line);
                     Option::None
@@ -68,13 +68,19 @@ pub fn load(path:String) -> Option<QuestionSet> {
                     questions::OptionalQuestion {
                         question : word[1].to_string(),
                         choises : word[2].split(",").map(|s| s.to_string()).collect(),
-                        correct_num : word[3].parse::<i32>().expect("⚠️ Could not parsed a correct num.")
+                        correct_num : word[3].split(",").map(|f| f.parse::<u32>().expect("⚠️ Could not parse a correct num.")).collect()
                     }
                 ),
                 "MD" => questions::Question::MultiDescriptional(
                     questions::MultipleDescriptionalQuestion {
                         question : word[1].to_string(),
                         required_answers : word[2].split(",").map(|s| s.to_string()).collect()
+                    }
+                ),
+                "OD" => questions::Question::OrderedMulDescriptional(
+                    questions::OrderedMultiDescriptionalQuestion {
+                        question: word[1].to_string(),
+                        required_answers: word[2].split(",").map(|s| s.to_string()).collect()
                     }
                 ),
                 _ => { panic!("⚠️ Something incorrect."); }

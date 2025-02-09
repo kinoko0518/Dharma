@@ -7,5 +7,5 @@ mod input;
 fn main() {
     println!("🗒️  Enter question set name");
     let path = format!("{}/questions/{}.txt", format!("{}", env::current_dir().unwrap().display()).replace("\\", "/"), input::get_input()).to_string();
-    question_set::load(path).unwrap().ask();
+    question_set::load(path).unwrap().get_shuffled().ask();
 }
